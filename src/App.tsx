@@ -17,7 +17,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "team", label: "My team" },
 ];
 const REPO_URL = "https://github.com/Pradof14/fantasy-basketball-analytics";
-const PORTFOLIO_URL = "https://pradof14.github.io/";
+const PORTFOLIO_URL = "https://juanprado.dev/";
 
 export default function App() {
   const [data, setData] = useState<Dataset | null>(null);

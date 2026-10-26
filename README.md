@@ -2,7 +2,7 @@
 
 Rank NBA players for your league's exact scoring, punt categories, and find out who wins a trade before you hit accept.
 
-**Live app:** https://pradof14.github.io/fantasy-basketball-analytics/
+**Live app:** https://juanprado.dev/fantasy-basketball-analytics/
 
 It runs entirely in the browser, needs no account, and refreshes its stats every morning.
 
