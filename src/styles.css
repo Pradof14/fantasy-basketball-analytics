@@ -66,6 +66,8 @@ button, input, select { font: inherit; color: inherit; }
 }
 .brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
 .brand h1 { font: 700 26px/1 var(--display); margin: 0; letter-spacing: 0.01em; }
+.byline { font-size: 13px; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.byline:hover { color: var(--leather); text-decoration: underline; }
 .brand .ball {
   width: 14px; height: 14px; border-radius: 50%; background: var(--leather);
   align-self: center; box-shadow: inset -3px -2px 0 rgb(0 0 0 / 0.18);
@@ -86,6 +88,8 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 600px) {
   .topbar { padding: 10px 12px; gap: 10px; }
   .brand h1 { font-size: 22px; }
+  .brand { flex-wrap: wrap; row-gap: 2px; }
+  .byline { flex-basis: 100%; padding-left: 24px; }
   .tab { font-size: 16px; padding: 8px 10px; }
   .season-select { width: 100%; }
   .season-select select { flex: 1; min-width: 0; }

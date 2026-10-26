@@ -17,6 +17,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "team", label: "My team" },
 ];
 const REPO_URL = "https://github.com/Pradof14/fantasy-basketball-analytics";
+const PORTFOLIO_URL = "https://pradof14.github.io/";
 
 export default function App() {
   const [data, setData] = useState<Dataset | null>(null);
@@ -78,6 +79,7 @@ export default function App() {
         <div className="brand">
           <span className="ball" aria-hidden="true" />
           <h1>Fantasy Hoops Calculator</h1>
+          <a className="byline" href={PORTFOLIO_URL}>by Juan Prado</a>
         </div>
         {mode && (
           <>
@@ -156,7 +158,7 @@ export default function App() {
 
       <footer className="foot">
         {data && <>Stats from {data.source}, updated {new Date(data.generatedAt).toLocaleDateString()}. </>}
-        Built by Juan Prado. <a href={REPO_URL}>Source on GitHub</a>
+        Built by <a href={PORTFOLIO_URL}>Juan Prado</a>. <a href={REPO_URL}>Source on GitHub</a>
       </footer>
     </>
   );
