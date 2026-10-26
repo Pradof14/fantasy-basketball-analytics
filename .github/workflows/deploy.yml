@@ -1,0 +1,73 @@
+name: Refresh data and deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 11 * * *" # daily, ~6am Central, after the night's games are final
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+      - run: pip install -r pipeline/requirements.txt
+      - name: Test the data pipeline
+        run: python -m pytest -q pipeline
+
+      # If the stats site is down or rate-limits us, keep yesterday's file
+      # and still deploy, rather than taking the site down.
+      - name: Fetch latest stats
+        id: fetch
+        continue-on-error: true
+        run: python pipeline/build_dataset.py
+      - name: Commit refreshed data
+        if: steps.fetch.outcome == 'success' && github.event_name != 'push'
+        run: |
+          if ! git diff --quiet -- public/data/players.json || [ -n "$(git ls-files --others --exclude-standard public/data)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/data/players.json
+            git commit -m "Update player stats"
+            git push
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Test the fantasy engine
+        run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

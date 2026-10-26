@@ -12,3 +12,6 @@ dist/
 
 # OS
 .DS_Store
+
+# Python test cache
+.pytest_cache/
