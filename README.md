@@ -1,4 +1,6 @@
-# Fantasy Hoops Calculator
+# Sixth Man
+
+*Your fantasy basketball sixth man.*
 
 Rank NBA players for your league's exact scoring, punt categories, and find out who wins a trade before you hit accept.
 

@@ -92,7 +92,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <span className="ball" aria-hidden="true" />
-          <h1>Fantasy Hoops Calculator</h1>
+          <h1>Sixth Man</h1>
           <a className="byline" href={PORTFOLIO_URL}>by Juan Prado</a>
         </div>
         {mode && (
