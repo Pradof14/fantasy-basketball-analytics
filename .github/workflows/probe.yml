@@ -1,0 +1,17 @@
+name: Probe injury page
+on:
+  push:
+    branches: [probe-injuries]
+permissions:
+  contents: write
+jobs:
+  probe:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -sS -A "Mozilla/5.0 (fantasy-basketball-calculator data job)" -o probe_injuries.html https://www.basketball-reference.com/friv/injuries.fcgi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add probe_injuries.html && git commit -m "probe html" && git push
