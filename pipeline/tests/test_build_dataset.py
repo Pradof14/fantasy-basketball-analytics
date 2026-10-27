@@ -46,3 +46,46 @@ def test_season_helpers():
     assert season_label(2027) == "2026-27"
     assert current_season_end(dt.date(2026, 10, 26)) == 2027
     assert current_season_end(dt.date(2027, 3, 1)) == 2027
+
+
+INJURY_FIXTURE = Path(__file__).parent / "fixtures" / "injuries_sample.html"
+
+
+@pytest.fixture(scope="module")
+def injuries():
+    from pipeline.build_dataset import parse_injuries
+    return {i.id: i for i in parse_injuries(INJURY_FIXTURE.read_text(encoding="utf-8"))}
+
+
+def test_parses_injury_rows(injuries):
+    assert len(injuries) == 5
+    gueye = injuries["gueyemo02"]
+    assert (gueye.name, gueye.team, gueye.status, gueye.label) == ("Mouhamed Gueye", "ATL", "out", "Out")
+    assert gueye.injury == "Foot" and gueye.updated == "2026-07-15"
+    assert gueye.note.startswith("The Hawks said")
+
+
+def test_injury_statuses(injuries):
+    assert injuries["veesahe01"].status == "out-season"
+    assert injuries["veesahe01"].injury == "ACL"
+    assert injuries["bilodty01"].status == "dtd"
+    assert injuries["bilodty01"].label == "Day To Day"
+
+
+def test_injury_table_inside_comment():
+    from pipeline.build_dataset import parse_injuries
+    html = INJURY_FIXTURE.read_text(encoding="utf-8")
+    start, end = html.index("<table"), html.index("</table>") + len("</table>")
+    commented = html[:start] + "<!--" + html[start:end] + "-->" + html[end:]
+    assert len(parse_injuries(commented)) == 5
+
+
+def test_failed_injury_fetch_keeps_last_report(tmp_path):
+    import json
+    from pipeline.build_dataset import keep_previous_injuries
+    old = tmp_path / "players.json"
+    old.write_text(json.dumps({"generatedAt": "2026-10-26T11:00:00+00:00", "injuries": [{"id": "x"}]}))
+    data = {"generatedAt": "2026-10-27T11:00:00+00:00", "seasons": []}
+    keep_previous_injuries(data, old)
+    assert data["injuries"] == [{"id": "x"}]
+    assert data["injuriesUpdatedAt"] == "2026-10-26T11:00:00+00:00"

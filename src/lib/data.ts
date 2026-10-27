@@ -1,5 +1,5 @@
 import { blendSeasons, type BlendedLine } from "../engine/blend";
-import type { Dataset, PlayerLine } from "../engine/types";
+import type { Dataset, Injury, PlayerLine } from "../engine/types";
 
 export type SeasonMode = "previous" | "current" | "blend" | "imported";
 
@@ -10,7 +10,32 @@ export interface SeasonOption {
 }
 
 /** The line the app works with: blended lines carry extra sample info. */
-export type AppLine = PlayerLine & Partial<Pick<BlendedLine, "currentWeight" | "sampleGames">>;
+export type AppLine = PlayerLine &
+  Partial<Pick<BlendedLine, "currentWeight" | "sampleGames" | "newThisSeason">> & { injury?: Injury };
+
+/** Attach each player's injury report entry (if any). */
+export function withInjuries(lines: AppLine[], data: Dataset | null): AppLine[] {
+  const injuries = data?.injuries;
+  if (!injuries?.length) return lines;
+  const byId = new Map(injuries.map((i) => [i.id, i]));
+  return lines.map((p) => {
+    const injury = byId.get(p.id);
+    return injury ? { ...p, injury } : p;
+  });
+}
+
+/**
+ * The min-games filter keeps 2-game flukes off the board, but a rookie can't
+ * have more games than the season is old. Players with no line last season
+ * always pass in the projection, flagged as a small sample instead.
+ */
+export function passesMinGames(p: AppLine, minGames: number): boolean {
+  return p.newThisSeason === true || gamesOf(p) >= minGames;
+}
+
+export function isOut(p: AppLine): boolean {
+  return p.injury?.status === "out" || p.injury?.status === "out-season";
+}
 
 export async function loadDataset(): Promise<Dataset | null> {
   try {

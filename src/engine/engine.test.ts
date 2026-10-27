@@ -113,6 +113,12 @@ describe("season blending", () => {
     const out = blendSeasons([line("vet")], [line("rookie", { gp: 4 })]);
     expect(out.map((p) => [p.id, p.currentWeight])).toEqual([["rookie", 1], ["vet", 0]]);
   });
+
+  it("flags players with no line last season as new", () => {
+    const out = blendSeasons([line("vet")], [line("vet", { gp: 3 }), line("rookie", { gp: 3 })]);
+    expect(out.find((p) => p.id === "rookie")?.newThisSeason).toBe(true);
+    expect(out.find((p) => p.id === "vet")?.newThisSeason).toBeUndefined();
+  });
 });
 
 describe("trade analyzer", () => {

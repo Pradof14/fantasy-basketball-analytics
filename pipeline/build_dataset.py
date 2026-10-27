@@ -2,19 +2,20 @@
 Build the player dataset the web app reads.
 
 Pulls per-game stats from Basketball Reference for the previous season and the
-current season, cleans them into one consistent shape, and writes
-`public/data/players.json`.
+current season, plus the current injury report, cleans them into one consistent
+shape, and writes `public/data/players.json`.
 
 Why Basketball Reference instead of stats.nba.com?
   stats.nba.com blocks most cloud IP ranges (including GitHub Actions), so a
   nightly job that depends on it fails silently. Basketball Reference serves
-  plain HTML tables, tolerates light scraping (we make 2 requests a night, far
+  plain HTML tables, tolerates light scraping (we make 3 requests per run, far
   under their 20/minute limit), and its column ids (`data-stat`) are stable.
 
 Usage:
     python pipeline/build_dataset.py                      # live fetch
     python pipeline/build_dataset.py --season-end 2027    # pick seasons explicitly
-    python pipeline/build_dataset.py --html 2027=page.html --html 2026=old.html
+    python pipeline/build_dataset.py --html 2027=page.html --html 2026=old.html \
+        --injuries-html injuries.html
 """
 from __future__ import annotations
 
@@ -34,6 +35,7 @@ from bs4 import BeautifulSoup, Comment
 ROOT = Path(__file__).resolve().parents[1]
 OUT_PATH = ROOT / "public" / "data" / "players.json"
 BBREF_URL = "https://www.basketball-reference.com/leagues/NBA_{year}_per_game.html"
+INJURIES_URL = "https://www.basketball-reference.com/friv/injuries.fcgi"
 HEADERS = {"User-Agent": "Mozilla/5.0 (fantasy-basketball-calculator data job)"}
 
 # Basketball Reference renamed some data-stat ids in 2024. Each field lists
@@ -107,14 +109,17 @@ def current_season_end(today: dt.date | None = None) -> int:
 
 
 def fetch_html(year: int, retries: int = 3) -> str:
-    url = BBREF_URL.format(year=year)
+    return fetch_url(BBREF_URL.format(year=year), season_label(year), retries)
+
+
+def fetch_url(url: str, what: str, retries: int = 3) -> str:
     for attempt in range(1, retries + 1):
         resp = requests.get(url, headers=HEADERS, timeout=30)
         if resp.status_code == 200:
             resp.encoding = "utf-8"
             return resp.text
         if resp.status_code == 404:
-            raise FileNotFoundError(f"No page yet for {season_label(year)} ({url})")
+            raise FileNotFoundError(f"No page yet for {what} ({url})")
         wait = 10 * attempt
         print(f"  {url} -> HTTP {resp.status_code}, retrying in {wait}s", file=sys.stderr)
         time.sleep(wait)
@@ -139,14 +144,14 @@ def _num(text: str) -> float:
         return 0.0
 
 
-def _find_table(soup: BeautifulSoup):
-    table = soup.find("table", id="per_game_stats")
+def _find_table(soup: BeautifulSoup, table_id: str = "per_game_stats"):
+    table = soup.find("table", id=table_id)
     if table is not None:
         return table
     # Some Basketball Reference tables ship inside HTML comments.
     for comment in soup.find_all(string=lambda s: isinstance(s, Comment)):
-        if 'id="per_game_stats"' in comment:
-            return BeautifulSoup(comment, "lxml").find("table", id="per_game_stats")
+        if f'id="{table_id}"' in comment:
+            return BeautifulSoup(comment, "lxml").find("table", id=table_id)
     return None
 
 
@@ -198,6 +203,56 @@ def parse_per_game(html: str) -> list[PlayerSeason]:
     return [players[pid] for pid in order if players[pid].gp > 0]
 
 
+@dataclass
+class Injury:
+    id: str
+    name: str
+    team: str
+    status: str  # "out", "out-season", "dtd", or "other"
+    label: str  # the site's wording, e.g. "Day To Day"
+    injury: str  # body part / reason, e.g. "Ankle"
+    updated: str  # ISO date of the latest update
+    note: str
+
+
+# "Out For Season (ACL) - The Hawks said..." -> label, injury, rest of note
+INJURY_NOTE = re.compile(r"^\s*([^(\-]+?)\s*(?:\(([^)]*)\))?\s*(?:-\s*(.*))?$", re.S)
+STATUS_BY_LABEL = {"out": "out", "out for season": "out-season", "day to day": "dtd"}
+
+
+def parse_injuries(html: str) -> list[Injury]:
+    soup = BeautifulSoup(html, "lxml")
+    table = _find_table(soup, "injuries")
+    if table is None:
+        raise ValueError("injuries table not found -- page layout may have changed")
+    out: list[Injury] = []
+    for row in table.select("tbody tr"):
+        name_cell = row.find(["th", "td"], attrs={"data-stat": "player"})
+        note_cell = row.find("td", attrs={"data-stat": "note"})
+        if name_cell is None or note_cell is None:
+            continue
+        name = name_cell.get_text(strip=True)
+        pid = name_cell.get("data-append-csv") or _slug(name)
+        team_cell = row.find("td", attrs={"data-stat": "team_name"})
+        team_link = team_cell.find("a") if team_cell else None
+        team_match = re.search(r"/teams/([A-Z]{3})/", team_link.get("href", "")) if team_link else None
+        date_cell = row.find("td", attrs={"data-stat": "date_update"})
+        text = note_cell.get_text(" ", strip=True)
+        m = INJURY_NOTE.match(text)
+        label = (m.group(1) if m else text).strip()
+        out.append(Injury(
+            id=pid,
+            name=name,
+            team=team_match.group(1) if team_match else (team_cell.get_text(strip=True) if team_cell else ""),
+            status=STATUS_BY_LABEL.get(label.lower(), "other"),
+            label=label,
+            injury=((m.group(2) if m else "") or "").strip(),
+            updated=(date_cell.get("csk") or date_cell.get_text(strip=True)) if date_cell else "",
+            note=((m.group(3) if m else "") or text).strip(),
+        ))
+    return out
+
+
 def _slug(name: str) -> str:
     ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")
@@ -226,7 +281,23 @@ def _name_key(name: str) -> str:
     return re.sub(r"(jr|sr|ii|iii|iv)$", "", key)
 
 
-def build(seasons: list[int], html_overrides: dict[int, str]) -> dict:
+def build_injuries(override: str | None) -> list[dict] | None:
+    """Injury report, or None if it couldn't be fetched (stats still ship)."""
+    try:
+        if override:
+            html = Path(override).read_text(encoding="utf-8")
+        else:
+            time.sleep(4)
+            html = fetch_url(INJURIES_URL, "injury report")
+        injuries = parse_injuries(html)
+    except Exception as exc:  # noqa: BLE001 -- injuries are a bonus, never fatal
+        print(f"  skipping injuries: {exc}", file=sys.stderr)
+        return None
+    print(f"  injuries: {len(injuries)} players")
+    return [asdict(i) for i in injuries]
+
+
+def build(seasons: list[int], html_overrides: dict[int, str], injuries_html: str | None = None) -> dict:
     out: dict = {
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "source": "Basketball Reference per-game stats",
@@ -252,7 +323,22 @@ def build(seasons: list[int], html_overrides: dict[int, str]) -> dict:
         )
     if not out["seasons"]:
         raise SystemExit("No season data collected; not overwriting the existing file.")
+    injuries = build_injuries(injuries_html)
+    if injuries is not None:
+        out["injuries"] = injuries
+        out["injuriesUpdatedAt"] = out["generatedAt"]
     return out
+
+
+def keep_previous_injuries(data: dict, path: Path) -> None:
+    """If tonight's injury fetch failed, carry the last report forward (with its old timestamp)."""
+    try:
+        old = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if "injuries" in old:
+        data["injuries"] = old["injuries"]
+        data["injuriesUpdatedAt"] = old.get("injuriesUpdatedAt", old.get("generatedAt"))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -261,6 +347,8 @@ def main(argv: list[str] | None = None) -> None:
                         help="end year of the current season (2027 = 2026-27)")
     parser.add_argument("--html", action="append", default=[], metavar="YEAR=PATH",
                         help="parse a saved page instead of fetching (repeatable)")
+    parser.add_argument("--injuries-html", metavar="PATH",
+                        help="parse a saved injury page instead of fetching")
     parser.add_argument("--out", type=Path, default=OUT_PATH)
     args = parser.parse_args(argv)
 
@@ -271,7 +359,9 @@ def main(argv: list[str] | None = None) -> None:
 
     # Previous season first so the app's default "last full season" is stable.
     seasons = [args.season_end - 1, args.season_end]
-    data = build(seasons, overrides)
+    data = build(seasons, overrides, args.injuries_html)
+    if "injuries" not in data:
+        keep_previous_injuries(data, args.out)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(data, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {args.out.relative_to(ROOT) if args.out.is_relative_to(ROOT) else args.out}")

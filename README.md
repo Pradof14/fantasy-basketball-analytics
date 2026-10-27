@@ -13,6 +13,7 @@ It runs entirely in the browser, needs no account, and refreshes its stats every
 - **Trade analyzer.** Add players to each side and get a verdict, the net value change, and a per-category breakdown. It correctly handles uneven trades, like 2-for-1s (see below).
 - **My team.** Save your roster to see its category profile, its weakest spots, and waiver-level players who fix them.
 - **Early-season projection.** A few games of box scores is mostly noise, so the default view blends this season into last season and leans on the new season as games accumulate.
+- **Injury report.** Players on the injury report get an **OUT** or **DTD** tag (with the injury) everywhere they appear, plus the full note in their profile. "Hide injured (OUT)" clears them from rankings when you're hunting waivers.
 - **Bring your own data.** Import any per-game CSV, such as a Basketball Reference export or your own projections.
 - Player profiles, a watchlist, position filters, and sortable columns. Everything is saved in your browser.
 
@@ -27,7 +28,7 @@ It runs entirely in the browser, needs no account, and refreshes its stats every
 
 Turnovers are negated (fewer is better), and a player's total is the sum across the categories you count.
 
-**Season blending.** The projection weights this season by `games / (games + 15)`. A player 5 games in counts 25% this season and 75% last season. By 45 games it's 75/25. Rookies use this season only, and players who haven't played yet keep last season's line, with a "Not played" tag.
+**Season blending.** The projection weights this season by `games / (games + 15)`. A player 5 games in counts 25% this season and 75% last season. By 45 games it's 75/25. Rookies (and anyone who missed all of last season) use this season only and skip the minimum-games filter, since they can't have more games than the season is old. They carry a "New · small sample" tag. Players who haven't played yet keep last season's line, with a "Not played" tag.
 
 **Uneven trades.** If you send 2 players and get 1 back, you haven't lost the second player's full value: you can fill the open roster spot off waivers. The analyzer credits each opened spot with replacement-level value, and charges the same when you take on more players than you send, since you'd have to cut someone.
 
@@ -37,20 +38,20 @@ Turnovers are negated (fewer is better), and a player's total is the sum across 
 pipeline/          Python: scrape per-game stats, clean, write JSON
   build_dataset.py
   tests/           parser tests against a saved page fixture
-public/data/       players.json, refreshed daily by GitHub Actions
+public/data/       players.json (stats + injury report), refreshed 3x a day by GitHub Actions
 src/
   engine/          pure TypeScript: scoring, z-scores, blending, trades, CSV import
     engine.test.ts unit tests for the math
   components/      React UI: rankings, trade analyzer, my team, player drawer
   lib/             data loading, formatting, persisted state
-.github/workflows/ nightly data refresh and deploy to GitHub Pages
+.github/workflows/ scheduled data refresh and deploy to GitHub Pages
 ```
 
 The calculation engine has no UI dependencies, so it's unit tested on its own and could back an API or a different frontend unchanged.
 
 **Why no backend?** An earlier version of this repo used FastAPI and PostgreSQL. For a calculator, every query is "rank about 500 players under these settings", which takes a few milliseconds in the browser. Moving it client-side made the app instant, free to host, and impossible to take down with a cold-starting server. The Python side still does the data engineering: fetching, cleaning, and publishing a versioned dataset on a schedule.
 
-**Why Basketball Reference?** `stats.nba.com` blocks most cloud IP ranges, including GitHub Actions, so a nightly job built on it fails silently. Basketball Reference serves stable HTML tables. The job makes two requests a day, well under their rate limit. If a fetch fails, the previous day's data stays live.
+**Why Basketball Reference?** `stats.nba.com` blocks most cloud IP ranges, including GitHub Actions, so a nightly job built on it fails silently. Basketball Reference serves stable HTML tables. Each run makes three requests (two seasons of per-game stats and the injury report), well under their rate limit. It runs early morning, mid-afternoon, and before evening tip-offs (Central time) so injury news stays fresh. If a fetch fails, the previous data stays live, and a failed injury fetch keeps the last report.
 
 ## Run it locally
 
@@ -79,6 +80,7 @@ Tests: `npm test` (engine) and `python -m pytest pipeline` (data parser). Type c
 
 - Season averages can't capture double-double or triple-double bonuses, or week-to-week schedule volume.
 - The trade analyzer values players, not lineups. It doesn't know your league's starting slots or who's actually on waivers.
+- Injury status is only as fresh as the last refresh (up to a few hours old). Check your league app right before lineups lock.
 - Stats come from Basketball Reference and are for personal, non-commercial use.
 
 Built by Juan Prado, MIS @ University of Houston.

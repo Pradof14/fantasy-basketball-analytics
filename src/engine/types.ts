@@ -32,10 +32,28 @@ export interface SeasonData {
   players: PlayerLine[];
 }
 
+/** One row of the injury report, as written by pipeline/build_dataset.py. */
+export interface Injury {
+  id: string;
+  name: string;
+  team: string;
+  /** Normalized status: out, out for the season, day-to-day, or anything else. */
+  status: "out" | "out-season" | "dtd" | "other";
+  /** The source's wording, e.g. "Day To Day". */
+  label: string;
+  /** Body part or reason, e.g. "Ankle". */
+  injury: string;
+  /** ISO date of the latest update. */
+  updated: string;
+  note: string;
+}
+
 export interface Dataset {
   generatedAt: string;
   source: string;
   seasons: SeasonData[];
+  injuries?: Injury[];
+  injuriesUpdatedAt?: string;
 }
 
 /** Counting stats a points league can put a weight on. */

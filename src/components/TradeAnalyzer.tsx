@@ -5,6 +5,7 @@ import type { ValuationResult } from "../engine/value";
 import type { AppLine } from "../lib/data";
 import { fmt1, fmt2, signed } from "../lib/format";
 import { Headshot } from "./Headshot";
+import { InjuryTag } from "./InjuryTag";
 import { PlayerPicker } from "./PlayerPicker";
 
 export interface TradeState { send: string[]; receive: string[] }
@@ -43,7 +44,10 @@ export function TradeAnalyzer({ valuation, settings, trade, onChange, onOpen }: 
                 <button className="link-btn" style={{ color: "inherit", fontSize: 15 }} onClick={() => onOpen(id)}>
                   {v?.player.name ?? id}
                 </button>
-                <div className="meta">{v ? `#${v.rank} overall, ${v.player.team}` : "Below the min games filter"}</div>
+                <div className="meta">
+                  {v ? `#${v.rank} overall, ${v.player.team}` : "Below the min games filter"}
+                  {v && <InjuryTag injury={v.player.injury} />}
+                </div>
               </div>
               <span className="value">{v ? fmt(v.value) : "–"}</span>
               <button className="remove" aria-label={`Remove ${v?.player.name ?? id}`}

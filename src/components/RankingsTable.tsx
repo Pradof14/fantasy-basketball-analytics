@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { CATEGORY_LABELS, type Category, type LeagueSettings } from "../engine/types";
 import type { PlayerValue, ValuationResult } from "../engine/value";
-import { gamesOf, matchesPosition, type AppLine } from "../lib/data";
+import { gamesOf, isOut, matchesPosition, type AppLine } from "../lib/data";
 import { fmt1, fmt2, pct, zClass } from "../lib/format";
 import { Headshot } from "./Headshot";
+import { InjuryTag, SampleTag } from "./InjuryTag";
 
 const POSITIONS = ["ALL", "PG", "SG", "SF", "PF", "C", "G", "F"];
 const POINTS_STATS = [
@@ -30,6 +31,7 @@ export function RankingsTable(props: Props) {
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState("ALL");
   const [starredOnly, setStarredOnly] = useState(false);
+  const [hideOut, setHideOut] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "rank", desc: false });
   const [limit, setLimit] = useState(PAGE);
   const isCats = settings.scoring === "categories";
@@ -41,7 +43,8 @@ export function RankingsTable(props: Props) {
       (p) =>
         matchesPosition(p.player.pos, position) &&
         (!q || normalize(p.player.name).includes(q) || p.player.team.toLowerCase() === q) &&
-        (!starredOnly || star.has(p.player.id)),
+        (!starredOnly || star.has(p.player.id)) &&
+        (!hideOut || !isOut(p.player)),
     );
     if (sort.key !== "rank") {
       const get = sortValue(sort.key);
@@ -50,7 +53,7 @@ export function RankingsTable(props: Props) {
       list = [...list].reverse();
     }
     return list;
-  }, [valuation, query, position, starredOnly, starred, sort]);
+  }, [valuation, query, position, starredOnly, starred, hideOut, sort]);
 
   const top = valuation.players[0]?.value ?? 1;
   const starSet = new Set(starred);
@@ -59,7 +62,7 @@ export function RankingsTable(props: Props) {
   const header = (key: SortKey, label: string, title?: string, left = false) => {
     const active = sort.key === key;
     return (
-      <th className={left ? "left" : undefined} title={title}
+      <th key={key} className={left ? "left" : undefined} title={title}
         aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}>
         <button onClick={() => setSort(active ? { key, desc: !sort.desc } : { key, desc: key !== "rank" })}>{label}</button>
       </th>
@@ -80,6 +83,10 @@ export function RankingsTable(props: Props) {
         </div>
         <button className="chip" aria-pressed={starredOnly} onClick={() => setStarredOnly((s) => !s)}>
           ★ Watchlist{starred.length ? ` (${starred.length})` : ""}
+        </button>
+        <button className="chip" aria-pressed={hideOut} onClick={() => setHideOut((s) => !s)}
+          title="Hide players listed as out on the injury report">
+          Hide injured (OUT)
         </button>
         <span className="spacer" />
         <label className="min-gp">
@@ -164,7 +171,9 @@ function Row({ p, isCats, settings, top, starred, mine, draftLine, replacement, 
             <div className="sub">
               <span>{pl.team}</span><span>{pl.pos}</span>
               {mine && <span className="tag mine">My team</span>}
-              {notPlayed && <span className="tag" title="No games this season yet. Using last season's line.">Not played</span>}
+              <InjuryTag injury={pl.injury} />
+              <SampleTag player={pl} />
+              {notPlayed && !pl.injury && <span className="tag" title="No games this season yet. Using last season's line.">Not played</span>}
             </div>
           </div>
         </div>

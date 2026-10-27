@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from "react";
 import type { PlayerValue } from "../engine/value";
 import type { AppLine } from "../lib/data";
 import { Headshot } from "./Headshot";
+import { InjuryTag } from "./InjuryTag";
 
 interface Props {
   players: PlayerValue<AppLine>[];
@@ -63,7 +64,7 @@ export function PlayerPicker({ players, exclude, onPick, placeholder, label }: P
               <Headshot name={m.player.name} nbaId={m.player.nbaId} />
               <span className="grow">
                 {m.player.name}
-                <span className="meta"> {m.player.team} {m.player.pos}</span>
+                <span className="meta"> {m.player.team} {m.player.pos}<InjuryTag injury={m.player.injury} /></span>
               </span>
               <span className="r">#{m.rank}</span>
             </li>

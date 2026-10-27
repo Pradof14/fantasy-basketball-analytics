@@ -4,6 +4,7 @@ import type { PlayerValue, ValuationResult } from "../engine/value";
 import type { AppLine } from "../lib/data";
 import { fmt1, fmt2, signed } from "../lib/format";
 import { Headshot } from "./Headshot";
+import { InjuryTag } from "./InjuryTag";
 import { PlayerPicker } from "./PlayerPicker";
 
 interface Props {
@@ -75,7 +76,7 @@ export function MyTeam({ valuation, settings, roster, onChange, onOpen }: Props)
               <Headshot name={p.player.name} nbaId={p.player.nbaId} />
               <div className="grow">
                 <button className="link-btn" style={{ color: "inherit", fontSize: 15 }} onClick={() => onOpen(p.player.id)}>{p.player.name}</button>
-                <div className="meta">#{p.rank} overall, {p.player.team} {p.player.pos}</div>
+                <div className="meta">#{p.rank} overall, {p.player.team} {p.player.pos}<InjuryTag injury={p.player.injury} /></div>
               </div>
               <span className="value">{fmt(p.value)}</span>
               <button className="remove" aria-label={`Remove ${p.player.name}`} onClick={() => onChange(roster.filter((x) => x !== p.player.id))}>×</button>
@@ -131,6 +132,7 @@ export function MyTeam({ valuation, settings, roster, onChange, onOpen }: Props)
                 <div className="meta">
                   #{p.rank}, {p.player.team}
                   {profile && weakest.length ? `, ${weakest.map((c) => `${CATEGORY_LABELS[c]} ${signed(p.z![c], 1)}`).join(", ")}` : `, ${fmt1(p.fppg)} FPPG`}
+                  <InjuryTag injury={p.player.injury} />
                 </div>
               </div>
               <button className="btn small" onClick={() => onChange([...roster, p.player.id])}>Add</button>

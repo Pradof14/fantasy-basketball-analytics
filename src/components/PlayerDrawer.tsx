@@ -4,6 +4,7 @@ import type { PlayerValue, ValuationResult } from "../engine/value";
 import { gamesOf, type AppLine } from "../lib/data";
 import { fmt1, fmt2, pct, signed } from "../lib/format";
 import { Headshot } from "./Headshot";
+import { fmtDate } from "./InjuryTag";
 
 interface Props {
   value: PlayerValue<AppLine>;
@@ -56,6 +57,20 @@ export function PlayerDrawer(props: Props) {
           </p>
         )}
         {p.currentWeight === 0 && <p className="compare-line">Hasn't played this season yet, so this is last season's line.</p>}
+        {p.newThisSeason && (
+          <p className="compare-line">
+            No stats from last season (a rookie, or missed the year), so this is just {p.gp} game{p.gp === 1 ? "" : "s"} of this
+            season. Treat the ranking as a small sample.
+          </p>
+        )}
+        {p.injury && (
+          <div className={`injury-box${p.injury.status === "dtd" || p.injury.status === "other" ? "" : " out"}`} role="note">
+            <b>{p.injury.label}{p.injury.injury ? ` (${p.injury.injury})` : ""}</b>
+            <span className="meta"> · updated {fmtDate(p.injury.updated)}</span>
+            <div>{p.injury.note}</div>
+            <p className="hint">From the Basketball Reference injury report.</p>
+          </div>
+        )}
 
         <div className="statline">
           <div><b>{fmt1(p.pts)}</b><span>PTS</span></div>

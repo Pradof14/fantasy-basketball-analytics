@@ -6,6 +6,8 @@ export interface BlendedLine extends PlayerLine {
   currentWeight: number;
   /** Games behind the blended line (both seasons). */
   sampleGames: number;
+  /** No line last season (a rookie, or missed the whole year): this season's games only. */
+  newThisSeason?: boolean;
 }
 
 const RATE_FIELDS = [
@@ -38,7 +40,7 @@ export function blendSeasons(
     const prev = prevById.get(cur.id);
     if (!prev) {
       // Rookies and players who didn't play last year: current season only.
-      out.push({ ...cur, currentWeight: 1, sampleGames: cur.gp });
+      out.push({ ...cur, currentWeight: 1, sampleGames: cur.gp, newThisSeason: true });
       continue;
     }
     const w = cur.gp / (cur.gp + stabilization);

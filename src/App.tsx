@@ -7,7 +7,7 @@ import { PlayerDrawer } from "./components/PlayerDrawer";
 import { RankingsTable } from "./components/RankingsTable";
 import { CsvImport, SettingsPanel } from "./components/SettingsPanel";
 import { TradeAnalyzer, type TradeState } from "./components/TradeAnalyzer";
-import { defaultMinGames, gamesOf, linesFor, loadDataset, seasonOptions, type SeasonMode } from "./lib/data";
+import { defaultMinGames, linesFor, loadDataset, passesMinGames, seasonOptions, withInjuries, type SeasonMode } from "./lib/data";
 import { useStored } from "./lib/useStored";
 
 type Tab = "rankings" | "trade" | "team";
@@ -43,14 +43,17 @@ export default function App() {
   const mode: SeasonMode | null =
     storedMode && options.some((o) => o.mode === storedMode) ? storedMode : options[0]?.mode ?? null;
 
-  const lines = useMemo(() => (mode ? linesFor(mode, data, imported) : []), [mode, data, imported]);
+  const lines = useMemo(
+    () => (mode ? withInjuries(linesFor(mode, data, imported), mode === "imported" ? null : data) : []),
+    [mode, data, imported],
+  );
   const minGames = mode ? minGamesByMode[mode] ?? defaultMinGames(mode, lines) : 0;
   const effective: LeagueSettings = useMemo(
     () => ({ ...DEFAULT_SETTINGS, ...settings, basis: mode === "blend" ? "perGame" : settings.basis }),
     [settings, mode],
   );
   const valuation = useMemo(
-    () => valuePlayers(lines.filter((p) => gamesOf(p) >= minGames), effective),
+    () => valuePlayers(lines.filter((p) => passesMinGames(p, minGames)), effective),
     [lines, minGames, effective],
   );
 
@@ -158,10 +161,15 @@ export default function App() {
 
       <footer className="foot">
         {data && <>Stats from {data.source}, updated {new Date(data.generatedAt).toLocaleDateString()}. </>}
+        {data?.injuriesUpdatedAt && <>Injury report updated {formatUpdated(data.injuriesUpdatedAt)}. </>}
         Built by <a href={PORTFOLIO_URL}>Juan Prado</a>. <a href={REPO_URL}>Source on GitHub</a>
       </footer>
     </>
   );
+}
+
+function formatUpdated(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function tabFromHash(): Tab {

@@ -15,6 +15,9 @@
   --good-soft: #dcf1e6;
   --bad: #c23b2e;
   --bad-soft: #f8e0dd;
+  --warn: #a8660b;
+  --warn-soft: #fbefd6;
+  --info-soft: #e1ebfa;
   --focus: #2a63c4;
   --shadow: 0 1px 2px rgb(19 35 58 / 0.06), 0 8px 24px rgb(19 35 58 / 0.08);
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -38,6 +41,9 @@
     --good-soft: #173a2e;
     --bad: #ef6b5d;
     --bad-soft: #3d2023;
+    --warn: #f0b552;
+    --warn-soft: #3a2f17;
+    --info-soft: #1c2c4c;
     --focus: #7aa7ff;
     --shadow: 0 8px 28px rgb(0 0 0 / 0.35);
     color-scheme: dark;
@@ -291,3 +297,15 @@ table.rank { width: 100%; border-collapse: collapse; font-size: 14px; }
 .error { color: var(--bad); font-size: 13px; margin-top: 8px; }
 footer.foot { padding: 24px; text-align: center; color: var(--muted); font-size: 13px; }
 footer.foot a { color: inherit; }
+
+/* --------------------------------------------------------- injury / sample tags */
+.tag.out { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.tag.dtd { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.tag.inj { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.tag.new { background: var(--info-soft); color: var(--focus); border-color: transparent; }
+.meta .tag, .grow .tag { margin-left: 6px; vertical-align: 1px; }
+.injury-box { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 14px; background: var(--warn-soft); color: var(--ink); }
+.injury-box.out { background: var(--bad-soft); }
+.injury-box b { color: var(--warn); }
+.injury-box.out b { color: var(--bad); }
+.injury-box .hint { margin-top: 4px; }
