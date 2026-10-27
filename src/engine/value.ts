@@ -22,10 +22,19 @@ export interface PlayerValue<P extends PlayerLine = PlayerLine> {
   z?: CategoryScores;
   /** How much each stat contributes to fppg (points leagues). */
   breakdown?: Partial<Record<CountingStat, number>>;
+  /**
+   * Valued but kept out of the rankings (e.g. below the min-games filter).
+   * `rank` is then where the player's value would slot in.
+   */
+  unranked?: boolean;
 }
 
 export interface ValuationResult<P extends PlayerLine = PlayerLine> {
+  /** The ranked list. */
   players: PlayerValue<P>[];
+  /** Everyone else, valued on the same scale so they can still be added or traded. */
+  extras: PlayerValue<P>[];
+  /** Ranked players and extras. */
   byId: Map<string, PlayerValue<P>>;
   /** Number of rostered players league-wide (teams × roster size). */
   draftable: number;
@@ -141,14 +150,18 @@ const sumCats = (z: CategoryScores, cats: readonly Category[]) =>
 export function valuePlayers<P extends PlayerLine>(
   lines: P[],
   settings: LeagueSettings,
+  extraLines: P[] = [],
 ): ValuationResult<P> {
   const draftable = Math.max(1, settings.teams * settings.rosterSize);
   const scaleOf = (p: PlayerLine) => (settings.basis === "total" ? p.gp : 1);
 
-  let scored: { player: P; value: number; fppg: number; z?: CategoryScores; breakdown?: PlayerValue["breakdown"] }[];
+  type Scored = { player: P; value: number; fppg: number; z?: CategoryScores; breakdown?: PlayerValue["breakdown"] };
+  let scored: Scored[];
+  // Extras are scored on the same scale, but never shape the pool or replacement level.
+  let scoreExtra: (player: P) => Scored;
 
   if (settings.scoring === "points") {
-    scored = lines.map((player) => {
+    const score = (player: P): Scored => {
       const fppg = fantasyPoints(player, settings.weights);
       return {
         player,
@@ -156,7 +169,9 @@ export function valuePlayers<P extends PlayerLine>(
         value: fppg * scaleOf(player),
         breakdown: pointsBreakdown(player, settings.weights),
       };
-    });
+    };
+    scored = lines.map(score);
+    scoreExtra = score;
   } else {
     const raws = lines.map((p) => rawCats(p, scaleOf(p)));
     const cats = settings.categories.length ? settings.categories : [...CATEGORIES];
@@ -174,15 +189,17 @@ export function valuePlayers<P extends PlayerLine>(
       .map((x) => raws[x.i]);
     const finalStats = poolStats(pool);
 
-    scored = lines.map((player, i) => {
-      const z = zScores(raws[i], finalStats);
+    const score = (player: P, raw: RawCats): Scored => {
+      const z = zScores(raw, finalStats);
       return {
         player,
         z,
         value: sumCats(z, cats),
         fppg: fantasyPoints(player, settings.weights),
       };
-    });
+    };
+    scored = lines.map((player, i) => score(player, raws[i]));
+    scoreExtra = (player) => score(player, rawCats(player, scaleOf(player)));
   }
 
   scored.sort((a, b) => b.value - a.value);
@@ -202,13 +219,40 @@ export function valuePlayers<P extends PlayerLine>(
     rank: i + 1,
     overReplacement: s.value - replacement,
   }));
+  const ranked = new Set(players.map((p) => p.player.id));
+  const extras: PlayerValue<P>[] = extraLines
+    .filter((p) => !ranked.has(p.id))
+    .map((p) => {
+      const s = scoreExtra(p);
+      return {
+        ...s,
+        rank: slotRank(players, s.value),
+        overReplacement: s.value - replacement,
+        unranked: true,
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+
   return {
     players,
-    byId: new Map(players.map((p) => [p.player.id, p])),
+    extras,
+    byId: new Map([...extras, ...players].map((p) => [p.player.id, p])),
     draftable,
     replacement,
     replacementZ,
   };
+}
+
+/** Where a value would land in a list sorted best-first (binary search). */
+function slotRank(sorted: PlayerValue[], value: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid].value >= value) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo + 1;
 }
 
 function average(xs: number[]): number {

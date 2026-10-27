@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { CATEGORIES, CATEGORY_LABELS, type Category, type LeagueSettings } from "../engine/types";
 import type { PlayerValue, ValuationResult } from "../engine/value";
-import type { AppLine } from "../lib/data";
+import { rankLabel, UNRANKED_HINT, type AppLine } from "../lib/data";
 import { fmt1, fmt2, signed } from "../lib/format";
 import { Headshot } from "./Headshot";
 import { InjuryTag } from "./InjuryTag";
@@ -54,7 +54,7 @@ export function MyTeam({ valuation, settings, roster, onChange, onOpen }: Props)
         <h2 className="section-title">My team</h2>
         <p className="hint">Add your roster to see its strengths and who to target. It's saved in this browser.</p>
         <div style={{ marginTop: 12 }}>
-          <PlayerPicker label="Add a player to my team" players={valuation.players} exclude={rosterSet}
+          <PlayerPicker label="Add a player to my team" players={[...valuation.players, ...valuation.extras]} exclude={rosterSet}
             placeholder="Add a player" onPick={(id) => onChange([...roster, id])} />
         </div>
 
@@ -67,7 +67,7 @@ export function MyTeam({ valuation, settings, roster, onChange, onOpen }: Props)
             </div>
           </div>
         )}
-        {hidden > 0 && <p className="notice">{hidden} of your players are hidden by the min games filter and aren't counted.</p>}
+        {hidden > 0 && <p className="notice">{hidden} of your players have no stats in the current stats view and aren't counted. Switch the Stats menu to include them.</p>}
 
         <div className="side-list">
           {members.length === 0 && <div className="empty-slot">Your roster is empty. Search above, or use "Add to my team" on any player.</div>}
@@ -76,7 +76,10 @@ export function MyTeam({ valuation, settings, roster, onChange, onOpen }: Props)
               <Headshot name={p.player.name} nbaId={p.player.nbaId} />
               <div className="grow">
                 <button className="link-btn" style={{ color: "inherit", fontSize: 15 }} onClick={() => onOpen(p.player.id)}>{p.player.name}</button>
-                <div className="meta">#{p.rank} overall, {p.player.team} {p.player.pos}<InjuryTag injury={p.player.injury} /></div>
+                <div className="meta" title={p.unranked ? UNRANKED_HINT : undefined}>
+                  {rankLabel(p)} overall, {p.player.team} {p.player.pos}<InjuryTag injury={p.player.injury} />
+                  {p.player.currentWeight === 0 && !p.player.injury && <span className="tag">Not played</span>}
+                </div>
               </div>
               <span className="value">{fmt(p.value)}</span>
               <button className="remove" aria-label={`Remove ${p.player.name}`} onClick={() => onChange(roster.filter((x) => x !== p.player.id))}>×</button>

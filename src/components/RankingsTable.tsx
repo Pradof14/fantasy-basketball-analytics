@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { CATEGORY_LABELS, type Category, type LeagueSettings } from "../engine/types";
 import type { PlayerValue, ValuationResult } from "../engine/value";
-import { gamesOf, isOut, matchesPosition, type AppLine } from "../lib/data";
+import { gamesOf, isOut, matchesPosition, rankLabel, UNRANKED_HINT, type AppLine } from "../lib/data";
 import { fmt1, fmt2, pct, zClass } from "../lib/format";
 import { Headshot } from "./Headshot";
 import { InjuryTag, SampleTag } from "./InjuryTag";
@@ -39,7 +39,10 @@ export function RankingsTable(props: Props) {
   const rows = useMemo(() => {
     const q = normalize(query.trim());
     const star = new Set(starred);
-    let list = valuation.players.filter(
+    // Searching or viewing the watchlist also finds players outside the rankings
+    // (below the min-games filter, or not played yet), listed after the ranked ones.
+    const source = q || starredOnly ? [...valuation.players, ...valuation.extras] : valuation.players;
+    let list = source.filter(
       (p) =>
         matchesPosition(p.player.pos, position) &&
         (!q || normalize(p.player.name).includes(q) || p.player.team.toLowerCase() === q) &&
@@ -157,7 +160,9 @@ function Row({ p, isCats, settings, top, starred, mine, draftLine, replacement, 
   return (
     <tr className={draftLine ? "draft-line" : undefined} onClick={() => onOpen(pl.id)}
       title={draftLine ? "Last rostered player in your league. Everyone below is replacement level." : undefined}>
-      <td className="rank-num">{p.rank}</td>
+      <td className={`rank-num${p.unranked ? " unranked" : ""}`} title={p.unranked ? UNRANKED_HINT : undefined}>
+        {p.unranked ? rankLabel(p).replace("#", "") : p.rank}
+      </td>
       <td className="left">
         <button className="star-btn" aria-pressed={starred} aria-label={`${starred ? "Remove" : "Add"} ${pl.name} ${starred ? "from" : "to"} watchlist`}
           onClick={(e) => { e.stopPropagation(); onToggleStar(pl.id); }}>{starred ? "★" : "☆"}</button>

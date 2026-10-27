@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Dataset, Injury, PlayerLine } from "../engine/types";
-import { isOut, passesMinGames, withInjuries, type AppLine } from "./data";
+import { isOut, missingFromView, passesMinGames, withInjuries, type AppLine } from "./data";
 
 const base = (id: string, gp: number, over: Partial<AppLine> = {}): AppLine =>
   ({ id, name: id, team: "HOU", pos: "G", age: 22, gp, gs: 0, min: 30, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
@@ -29,5 +29,29 @@ describe("injuries", () => {
     expect(isOut(base("a", 1, { injury: injury("a", "out") }))).toBe(true);
     expect(isOut(base("a", 1, { injury: injury("a", "out-season") }))).toBe(true);
     expect(isOut(base("a", 1, { injury: injury("a", "dtd") }))).toBe(false);
+  });
+});
+
+describe("players missing from a view", () => {
+  const data = {
+    generatedAt: "", source: "",
+    seasons: [
+      { id: "2026", label: "2025-26", players: [base("vet", 60), base("both", 70)] },
+      { id: "2027", label: "2026-27", players: [base("both", 3), base("rookie", 3)] },
+    ],
+  } as unknown as Dataset;
+
+  it("this-season view keeps players who haven't played, on last season's line", () => {
+    const out = missingFromView("current", data);
+    expect(out.map((p) => [p.id, p.gp, p.currentWeight])).toEqual([["vet", 60, 0]]);
+  });
+
+  it("last-season view keeps rookies, flagged as new", () => {
+    const out = missingFromView("previous", data);
+    expect(out.map((p) => [p.id, p.newThisSeason])).toEqual([["rookie", true]]);
+  });
+
+  it("projection already includes everyone", () => {
+    expect(missingFromView("blend", data)).toEqual([]);
   });
 });

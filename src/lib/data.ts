@@ -76,6 +76,34 @@ export function linesFor(mode: SeasonMode, data: Dataset | null, imported: Playe
   return cur?.players ?? [];
 }
 
+/**
+ * Players the selected view leaves out entirely, so they can still be found
+ * and added: in "this season so far", anyone who hasn't played yet (on last
+ * season's line, tagged "Not played"); in "last season", anyone new this year.
+ */
+export function missingFromView(mode: SeasonMode, data: Dataset | null): AppLine[] {
+  const seasons = data?.seasons ?? [];
+  const cur = seasons.at(-1);
+  const prev = seasons.length > 1 ? seasons[seasons.length - 2] : null;
+  if (!cur || !prev) return [];
+  if (mode === "current") {
+    const have = new Set(cur.players.map((p) => p.id));
+    return prev.players.filter((p) => !have.has(p.id)).map((p) => ({ ...p, currentWeight: 0, sampleGames: p.gp }));
+  }
+  if (mode === "previous") {
+    const have = new Set(prev.players.map((p) => p.id));
+    return cur.players.filter((p) => !have.has(p.id)).map((p) => ({ ...p, newThisSeason: true }));
+  }
+  return [];
+}
+
+export function rankLabel(p: { rank: number; unranked?: boolean }): string {
+  return p.unranked ? `≈#${p.rank}` : `#${p.rank}`;
+}
+
+export const UNRANKED_HINT =
+  "Not in the rankings (below your min-games filter, or no games in this view). ≈ marks where his value would slot in.";
+
 /** Sensible minimum-games filter so 2-game samples don't top the board. */
 export function defaultMinGames(mode: SeasonMode, lines: AppLine[]): number {
   if (mode === "blend") return 10;

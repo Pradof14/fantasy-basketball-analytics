@@ -99,6 +99,31 @@ describe("category valuation", () => {
   });
 });
 
+describe("players outside the rankings", () => {
+  it("are valued on the same scale without changing the ranked list", () => {
+    const pool = league([line("star", { pts: 34 })]);
+    const alone = valuePlayers(pool, points());
+    const withExtra = valuePlayers(pool, points(), [line("injured", { pts: 25, gp: 0 })]);
+    expect(withExtra.players.map((p) => [p.player.id, p.value])).toEqual(alone.players.map((p) => [p.player.id, p.value]));
+    expect(withExtra.replacement).toBe(alone.replacement);
+    const extra = withExtra.byId.get("injured")!;
+    expect(extra.unranked).toBe(true);
+    expect(extra.value).toBeCloseTo(fantasyPoints(line("injured", { pts: 25 }), points().weights));
+    expect(extra.rank).toBe(withExtra.players.filter((p) => p.value >= extra.value).length + 1);
+  });
+
+  it("works in category leagues too", () => {
+    const result = valuePlayers(league([line("star", { pts: 34 })]), cats(), [line("rookie", { pts: 20, reb: 9 })]);
+    expect(result.extras).toHaveLength(1);
+    expect(result.extras[0].z).toBeDefined();
+  });
+
+  it("never duplicates a ranked player", () => {
+    const pool = league([line("star")]);
+    expect(valuePlayers(pool, points(), [line("star")]).extras).toHaveLength(0);
+  });
+});
+
 describe("season blending", () => {
   it("leans on last season early and the new season later", () => {
     const prev = [line("a", { pts: 20, gp: 70 })];

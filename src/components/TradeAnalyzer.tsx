@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { evaluateTrade } from "../engine/trade";
 import { CATEGORIES, CATEGORY_LABELS, type LeagueSettings } from "../engine/types";
 import type { ValuationResult } from "../engine/value";
-import type { AppLine } from "../lib/data";
 import { fmt1, fmt2, signed } from "../lib/format";
+import { rankLabel, type AppLine } from "../lib/data";
 import { Headshot } from "./Headshot";
 import { InjuryTag } from "./InjuryTag";
 import { PlayerPicker } from "./PlayerPicker";
@@ -25,13 +25,13 @@ export function TradeAnalyzer({ valuation, settings, trade, onChange, onOpen }: 
   const inTrade = useMemo(() => new Set([...trade.send, ...trade.receive]), [trade]);
   const ready = trade.send.length > 0 && trade.receive.length > 0;
   const result = ready ? evaluateTrade(valuation, trade.send, trade.receive) : null;
-  // Players dropped by the min-games filter can't be valued; say so instead of silently ignoring them.
+  // Only players with no stats at all in this view (e.g. an imported CSV) can't be valued.
   const missing = [...trade.send, ...trade.receive].filter((id) => !valuation.byId.has(id));
 
   const side = (key: keyof TradeState, title: string, hint: string) => (
     <div className="panel panel-pad side">
       <h3>{title}</h3>
-      <PlayerPicker label={`Add a player to "${title}"`} players={valuation.players} exclude={inTrade}
+      <PlayerPicker label={`Add a player to "${title}"`} players={[...valuation.players, ...valuation.extras]} exclude={inTrade}
         placeholder="Add a player" onPick={(id) => onChange({ ...trade, [key]: [...trade[key], id] })} />
       <div className="side-list">
         {trade[key].length === 0 && <div className="empty-slot">{hint}</div>}
@@ -45,7 +45,7 @@ export function TradeAnalyzer({ valuation, settings, trade, onChange, onOpen }: 
                   {v?.player.name ?? id}
                 </button>
                 <div className="meta">
-                  {v ? `#${v.rank} overall, ${v.player.team}` : "Below the min games filter"}
+                  {v ? `${rankLabel(v)} overall, ${v.player.team}` : "No stats in this view"}
                   {v && <InjuryTag injury={v.player.injury} />}
                 </div>
               </div>
@@ -66,7 +66,7 @@ export function TradeAnalyzer({ valuation, settings, trade, onChange, onOpen }: 
         {side("receive", "You receive", "Players joining your team")}
       </div>
 
-      {missing.length > 0 && <p className="notice" style={{ marginTop: 16 }}>Some players are hidden by the min games filter on the rankings tab and aren't counted.</p>}
+      {missing.length > 0 && <p className="notice" style={{ marginTop: 16 }}>Some players have no stats in the current stats view and aren't counted. Switch the Stats menu to include them.</p>}
 
       {!result ? (
         <div className="panel panel-pad" style={{ marginTop: 16 }}>

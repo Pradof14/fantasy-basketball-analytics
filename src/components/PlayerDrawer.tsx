@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { CATEGORIES, CATEGORY_LABELS, STAT_LABELS, type CountingStat, type LeagueSettings, type PlayerLine } from "../engine/types";
 import type { PlayerValue, ValuationResult } from "../engine/value";
-import { gamesOf, type AppLine } from "../lib/data";
+import { gamesOf, rankLabel, type AppLine } from "../lib/data";
 import { fmt1, fmt2, pct, signed } from "../lib/format";
 import { Headshot } from "./Headshot";
 import { fmtDate } from "./InjuryTag";
@@ -49,7 +49,7 @@ export function PlayerDrawer(props: Props) {
             <div className="meta">{p.team} {p.pos}{p.age ? `, age ${p.age}` : ""}</div>
             <div className="meta">{gamesOf(p)} games, {fmt1(p.min)} minutes a game</div>
           </div>
-          <div className="big-rank">#{v.rank}<small>{tier}</small></div>
+          <div className="big-rank">{rankLabel(v)}<small>{tier}</small></div>
         </div>
         {p.currentWeight !== undefined && p.currentWeight > 0 && p.currentWeight < 1 && (
           <p className="compare-line">
@@ -57,6 +57,12 @@ export function PlayerDrawer(props: Props) {
           </p>
         )}
         {p.currentWeight === 0 && <p className="compare-line">Hasn't played this season yet, so this is last season's line.</p>}
+        {v.unranked && (
+          <p className="compare-line">
+            Not in the rankings (below your min-games filter, or no games in this view), but you can still add or trade him.
+            {" "}{rankLabel(v)} is where his value would slot in.
+          </p>
+        )}
         {p.newThisSeason && (
           <p className="compare-line">
             No stats from last season (a rookie, or missed the year), so this is just {p.gp} game{p.gp === 1 ? "" : "s"} of this

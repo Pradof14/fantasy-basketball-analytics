@@ -7,7 +7,9 @@ import { PlayerDrawer } from "./components/PlayerDrawer";
 import { RankingsTable } from "./components/RankingsTable";
 import { CsvImport, SettingsPanel } from "./components/SettingsPanel";
 import { TradeAnalyzer, type TradeState } from "./components/TradeAnalyzer";
-import { defaultMinGames, linesFor, loadDataset, passesMinGames, seasonOptions, withInjuries, type SeasonMode } from "./lib/data";
+import {
+  defaultMinGames, linesFor, loadDataset, missingFromView, passesMinGames, seasonOptions, withInjuries, type SeasonMode,
+} from "./lib/data";
 import { useStored } from "./lib/useStored";
 
 type Tab = "rankings" | "trade" | "team";
@@ -47,14 +49,23 @@ export default function App() {
     () => (mode ? withInjuries(linesFor(mode, data, imported), mode === "imported" ? null : data) : []),
     [mode, data, imported],
   );
+  const missing = useMemo(
+    () => (mode && mode !== "imported" ? withInjuries(missingFromView(mode, data), data) : []),
+    [mode, data],
+  );
   const minGames = mode ? minGamesByMode[mode] ?? defaultMinGames(mode, lines) : 0;
   const effective: LeagueSettings = useMemo(
     () => ({ ...DEFAULT_SETTINGS, ...settings, basis: mode === "blend" ? "perGame" : settings.basis }),
     [settings, mode],
   );
   const valuation = useMemo(
-    () => valuePlayers(lines.filter((p) => passesMinGames(p, minGames)), effective),
-    [lines, minGames, effective],
+    () => valuePlayers(
+      lines.filter((p) => passesMinGames(p, minGames)),
+      effective,
+      // Everyone else still gets a value, so they can be searched, added, and traded.
+      [...lines.filter((p) => !passesMinGames(p, minGames)), ...missing],
+    ),
+    [lines, missing, minGames, effective],
   );
 
   const goTab = (t: Tab) => { setTab(t); history.replaceState(null, "", `#${t}`); };

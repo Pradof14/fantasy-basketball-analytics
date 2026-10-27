@@ -309,3 +309,4 @@ footer.foot a { color: inherit; }
 .injury-box b { color: var(--warn); }
 .injury-box.out b { color: var(--bad); }
 .injury-box .hint { margin-top: 4px; }
+.rank-num.unranked { color: var(--muted); font-size: 0.8em; }

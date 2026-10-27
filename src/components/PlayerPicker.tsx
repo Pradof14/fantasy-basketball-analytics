@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import type { PlayerValue } from "../engine/value";
-import type { AppLine } from "../lib/data";
+import { rankLabel, UNRANKED_HINT, type AppLine } from "../lib/data";
 import { Headshot } from "./Headshot";
 import { InjuryTag } from "./InjuryTag";
 
@@ -12,7 +12,7 @@ interface Props {
   label: string;
 }
 
-/** Type-ahead search over the ranked player pool. */
+/** Type-ahead search over every player: ranked ones first, then everyone else. */
 export function PlayerPicker({ players, exclude, onPick, placeholder, label }: Props) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -66,7 +66,7 @@ export function PlayerPicker({ players, exclude, onPick, placeholder, label }: P
                 {m.player.name}
                 <span className="meta"> {m.player.team} {m.player.pos}<InjuryTag injury={m.player.injury} /></span>
               </span>
-              <span className="r">#{m.rank}</span>
+              <span className="r" title={m.unranked ? UNRANKED_HINT : undefined}>{rankLabel(m)}</span>
             </li>
           ))}
         </ul>
