@@ -1,0 +1,20 @@
+name: Probe injury page
+on:
+  push:
+    branches: [probe-injuries]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sS -A "Mozilla/5.0 (fantasy-basketball-calculator data job)" -o inj.html -w "HTTP %{http_code} bytes %{size_download}\n" https://www.basketball-reference.com/friv/injuries.fcgi
+          python3 - <<'PY'
+          import re
+          h=open('inj.html',encoding='utf-8').read()
+          i=h.find('id="injuries"'); print('table at',i, 'in comment' if h.rfind('<!--',0,i)>h.rfind('-->',0,i) else '')
+          seg=h[i-200:i+6000]
+          print(seg)
+          print('ROWS', len(re.findall(r'<tr', h[i:h.find('</table>',i)])))
+          print('NOTES-START'); 
+          for m in re.findall(r'data-stat="note"[^>]*>(.*?)</td>', h)[:60]: print(m[:90])
+          PY
