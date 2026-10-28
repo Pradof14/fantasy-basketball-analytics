@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { playersFromCsv } from "../engine/csv";
 import { CATEGORY_PRESETS, DEFAULT_SETTINGS, POINTS_PRESETS, matchPreset } from "../engine/presets";
 import {
@@ -11,6 +11,8 @@ import {
   type PlayerLine,
 } from "../engine/types";
 
+const WIDE = "(min-width: 961px)";
+
 interface Props {
   settings: LeagueSettings;
   onChange: (s: LeagueSettings) => void;
@@ -21,8 +23,16 @@ interface Props {
 export function SettingsPanel({ settings, onChange, onImport, basisDisabled }: Props) {
   const set = (patch: Partial<LeagueSettings>) => onChange({ ...settings, ...patch });
   const preset = matchPreset(settings.weights);
-  // On phones, start collapsed so the rankings are on screen first.
-  const [startOpen] = useState(() => typeof window === "undefined" || window.matchMedia("(min-width: 961px)").matches);
+  // On phones, start collapsed so the rankings are on screen first. Wide
+  // layouts hide the Edit toggle, so the panel must be open whenever the
+  // window is wide, including after resizing a small window to full screen.
+  const [open, setOpen] = useState(() => typeof window === "undefined" || window.matchMedia(WIDE).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(WIDE);
+    const onChange = () => { if (mq.matches) setOpen(true); };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const toggleCategory = (c: Category) => {
     const has = settings.categories.includes(c);
@@ -32,7 +42,7 @@ export function SettingsPanel({ settings, onChange, onImport, basisDisabled }: P
 
   return (
     <aside className="panel panel-pad settings" aria-label="League settings">
-      <details open={startOpen}>
+      <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary>
           <h2 className="section-title">Your league</h2>
         </summary>
